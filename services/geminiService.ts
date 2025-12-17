@@ -13,18 +13,19 @@ const safetySettings = [
 
 // Helper to get the AI client lazily.
 const getAiClient = () => {
-  // Use process.env.API_KEY exclusively as per guidelines.
-  // This value is polyfilled by vite.config.ts define to ensure it captures VITE_API_KEY or API_KEY.
-  const apiKey = process.env.API_KEY;
+  // INTENT DE RECUPERACIÓ ROBUSTA DE LA CLAU:
+  // 1. process.env.API_KEY: Inserit pel 'define' de vite.config.ts (mètode clàssic).
+  // 2. import.meta.env.VITE_API_KEY: Mètode natiu de Vite per a variables que comencen per VITE_.
+  // 3. Fallback buit per evitar errors de 'undefined'.
+  const apiKey = process.env.API_KEY || (import.meta as any).env?.VITE_API_KEY || '';
 
   if (!apiKey || apiKey.trim() === '') {
     throw new Error(
       "No s'ha trobat l'API KEY. \n\n" +
       "SOLUCIÓ RECOMANADA (Vercel):\n" +
-      "1. Ves a Settings > Environment Variables.\n" +
-      "2. Crea una nova variable anomenada 'VITE_API_KEY' amb la teva clau.\n" +
-      "3. Esborra l'antiga 'API_KEY' si vols evitar confusions.\n" +
-      "4. Fes un 'Redeploy' a la secció Deployments."
+      "1. Assegura't que has definit la variable 'VITE_API_KEY' a Vercel (Settings > Environment Variables).\n" +
+      "2. IMPORTANT: Has de fer un PUSH a GitHub amb els últims canvis de codi perquè Vercel els apliqui.\n" +
+      "3. Si ja ho has fet, prova de fer un 'Redeploy' sense fer servir la memòria cau."
     );
   }
   return new GoogleGenAI({ apiKey: apiKey });
