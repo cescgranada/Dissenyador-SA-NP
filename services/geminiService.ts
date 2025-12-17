@@ -4,7 +4,6 @@ import { Phase1Input, Phase2Structure, Phase3Strategy, PhaseSequence, Evaluation
 const MODEL_NAME = "gemini-2.5-flash";
 
 // --- SAFETY SETTINGS ---
-// Permissive settings to avoid blocking educational content generation
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -15,10 +14,15 @@ const safetySettings = [
 // Helper to get the AI client lazily.
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("No s'ha trobat l'API KEY. Assegura't que està configurada a l'arxiu .env o a les variables d'entorn de Vercel.");
+  if (!apiKey || apiKey.trim() === '') {
+    throw new Error("No s'ha trobat l'API KEY. Comprova la configuració a Vercel (Environment Variables > API_KEY) i torna a fer Redeploy.");
   }
   return new GoogleGenAI({ apiKey: apiKey });
+};
+
+// Helper to clean JSON string from markdown code blocks
+const cleanJson = (text: string) => {
+  return text.replace(/```json/g, '').replace(/```/g, '').trim();
 };
 
 // --- SCHEMAS ---
@@ -165,7 +169,7 @@ export const generateStructure = async (input: Phase1Input): Promise<Phase2Struc
   });
 
   if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
-  return JSON.parse(response.text) as Phase2Structure;
+  return JSON.parse(cleanJson(response.text)) as Phase2Structure;
 };
 
 export const generateStrategy = async (input: Phase1Input, structure: Phase2Structure): Promise<Phase3Strategy> => {
@@ -197,7 +201,7 @@ export const generateStrategy = async (input: Phase1Input, structure: Phase2Stru
   });
 
   if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
-  return JSON.parse(response.text) as Phase3Strategy;
+  return JSON.parse(cleanJson(response.text)) as Phase3Strategy;
 };
 
 export const generateSequence = async (input: Phase1Input, structure: Phase2Structure, strategy: Phase3Strategy): Promise<PhaseSequence[]> => {
@@ -225,7 +229,7 @@ export const generateSequence = async (input: Phase1Input, structure: Phase2Stru
   });
 
   if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
-  const data = JSON.parse(response.text) as { sequence: PhaseSequence[] };
+  const data = JSON.parse(cleanJson(response.text)) as { sequence: PhaseSequence[] };
   return data.sequence;
 };
 
@@ -274,7 +278,7 @@ export const generateStudentWorksheets = async (sequence: PhaseSequence[], confi
   });
 
   if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
-  const data = JSON.parse(response.text) as { worksheets: StudentWorksheet[] };
+  const data = JSON.parse(cleanJson(response.text)) as { worksheets: StudentWorksheet[] };
   return data.worksheets;
 };
 
@@ -333,7 +337,7 @@ export const generateTools = async (worksheets: StudentWorksheet[], configs: Act
         throw new Error("No s'ha rebut resposta del model.");
     }
 
-    const data = JSON.parse(response.text) as { tools: EvaluationTool[] };
+    const data = JSON.parse(cleanJson(response.text)) as { tools: EvaluationTool[] };
     return data.tools;
   } catch (error) {
     console.error("Error generating evaluation tools:", error);

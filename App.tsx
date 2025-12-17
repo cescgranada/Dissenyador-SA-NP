@@ -28,7 +28,7 @@ const App: React.FC = () => {
       setStep(2);
     } catch (err) {
       console.error(err);
-      setError("Error generant l'estructura.");
+      setError(err instanceof Error ? err.message : "Error desconegut generant l'estructura.");
     } finally {
       setIsLoading(false);
     }
@@ -38,13 +38,14 @@ const App: React.FC = () => {
   const handlePhase2Confirm = async (updatedStructure: Phase2Structure) => {
     setSaData(prev => ({ ...prev, structure: updatedStructure }));
     setIsLoading(true);
+    setError(null);
     try {
       const strategy = await generateStrategy(saData.input, updatedStructure);
       setSaData(prev => ({ ...prev, strategy }));
       setStep(3);
     } catch (err) {
       console.error(err);
-      setError("Error generant l'estratègia.");
+      setError(err instanceof Error ? err.message : "Error generant l'estratègia.");
     } finally {
       setIsLoading(false);
     }
@@ -54,6 +55,7 @@ const App: React.FC = () => {
   const handleStrategyConfirm = async () => {
     if (!saData.structure || !saData.strategy) return;
     setIsLoading(true);
+    setError(null);
     try {
       // Step 4 is now Generating Activities based on Strategy (without instruments yet)
       const sequence = await generateSequence(saData.input, saData.structure, saData.strategy);
@@ -61,7 +63,7 @@ const App: React.FC = () => {
       setStep(4);
     } catch (err) {
       console.error(err);
-      setError("Error generant la seqüència d'activitats.");
+      setError(err instanceof Error ? err.message : "Error generant la seqüència d'activitats.");
     } finally {
       setIsLoading(false);
     }
@@ -84,6 +86,7 @@ const App: React.FC = () => {
     if (!saData.sequence || !saData.structure) return;
     setSaData(prev => ({ ...prev, activityConfigs: updatedConfigs }));
     setIsLoading(true);
+    setError(null);
     try {
       // Pass structure to ensure DUA, SDGs, etc. are integrated
       const worksheets = await generateStudentWorksheets(saData.sequence, updatedConfigs, saData.structure);
@@ -91,7 +94,7 @@ const App: React.FC = () => {
       setStep(7);
     } catch (err) {
       console.error(err);
-      setError("Error generant les fitxes de l'alumnat.");
+      setError(err instanceof Error ? err.message : "Error generant les fitxes de l'alumnat.");
     } finally {
       setIsLoading(false);
     }
@@ -101,13 +104,14 @@ const App: React.FC = () => {
   const handleGenerateTools = async () => {
     if (!saData.studentWorksheets || !saData.activityConfigs) return;
     setIsLoading(true);
+    setError(null);
     try {
       const tools = await generateTools(saData.studentWorksheets, saData.activityConfigs);
       setSaData(prev => ({ ...prev, evaluationTools: tools }));
       setStep(8);
     } catch (err) {
       console.error(err);
-      setError("Error generant les eines d'avaluació. Revisa la consola per més detalls.");
+      setError(err instanceof Error ? err.message : "Error generant les eines d'avaluació.");
     } finally {
       setIsLoading(false);
     }
@@ -116,6 +120,7 @@ const App: React.FC = () => {
   const handleReset = () => {
     setStep(1);
     setSaData({ input: { topic: '', product: '', area: 'STEM', grade: '1r ESO', duration: 12 } });
+    setError(null);
   };
 
   const getStepName = (s: number) => {
@@ -171,8 +176,16 @@ const App: React.FC = () => {
         
         {error && (
           <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded shadow-sm">
-            <p className="font-medium">Ha ocorregut un error</p>
-            <p className="text-sm">{error}</p>
+            <p className="font-bold flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              Ha ocorregut un error
+            </p>
+            <p className="text-sm mt-1">{error}</p>
+            {error.includes("API KEY") && (
+              <p className="text-xs mt-2 text-red-800 bg-red-100 p-2 rounded">
+                <strong>Nota per a Vercel:</strong> Si has afegit la variable <code>API_KEY</code> fa poc, recorda fer un "Redeploy" a la secció de Deployments perquè tingui efecte.
+              </p>
+            )}
           </div>
         )}
 
