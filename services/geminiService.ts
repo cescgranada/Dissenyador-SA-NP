@@ -15,13 +15,23 @@ const safetySettings = [
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey || apiKey.trim() === '') {
-    throw new Error("No s'ha trobat l'API KEY. Comprova la configuració a Vercel (Environment Variables > API_KEY) i torna a fer Redeploy.");
+    throw new Error("No s'ha trobat l'API KEY. Comprova la configuració a Vercel (Settings > Environment Variables > API_KEY) i assegura't que has fet un 'Redeploy' després d'afegir-la.");
   }
   return new GoogleGenAI({ apiKey: apiKey });
 };
 
-// Helper to clean JSON string from markdown code blocks
+// Helper to robustly clean JSON string from markdown or extra text
 const cleanJson = (text: string) => {
+  if (!text) return "{}";
+  // Find the first '{' and the last '}' to extract the JSON object
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  
+  if (start !== -1 && end !== -1 && end > start) {
+    return text.substring(start, end + 1);
+  }
+  
+  // Fallback: simple cleanup if braces aren't found (unlikely for valid objects)
   return text.replace(/```json/g, '').replace(/```/g, '').trim();
 };
 
@@ -142,34 +152,45 @@ const evaluationToolsSchema: Schema = {
 // --- FUNCTIONS ---
 
 export const generateStructure = async (input: Phase1Input): Promise<Phase2Structure> => {
-  const ai = getAiClient();
-  const prompt = `
-    Actua com un expert docent i dissenyador curricular a Catalunya.
-    Genera l'estructura curricular per a una SA:
-    - Tema: ${input.topic}
-    - Producte: ${input.product}
-    - Àmbit: ${input.area}
-    - Curs: ${input.grade}
+  try {
+    const ai = getAiClient();
+    const prompt = `
+      Actua com un expert docent i dissenyador curricular a Catalunya.
+      Genera l'estructura curricular per a una SA:
+      - Tema: ${input.topic}
+      - Producte: ${input.product}
+      - Àmbit: ${input.area}
+      - Curs: ${input.grade}
+      
+      1. Currículum: Competències Específiques i Sabers Essencials (Decret 175/2022).
+      2. ODS: Tria'n 2 o 3 de: ${JSON.stringify(ALL_SDGS)}.
+      3. Vectors: Tria'n 1 o 2 de: ${JSON.stringify(ALL_VECTORS)}.
+      4. ABPxODS: Tria'n 2 de: ${JSON.stringify(ALL_ABP_COMPETENCIES)}.
+      5. Eixos Escola: Tria'n 1 o 2 de: ${JSON.stringify(ALL_SCHOOL_AXES)}.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: phase2Schema,
+        safetySettings: safetySettings,
+      },
+    });
+
+    if (!response.text) throw new Error("La resposta del model està buida (bloqueig de seguretat o error de xarxa).");
     
-    1. Currículum: Competències Específiques i Sabers Essencials (Decret 175/2022).
-    2. ODS: Tria'n 2 o 3 de: ${JSON.stringify(ALL_SDGS)}.
-    3. Vectors: Tria'n 1 o 2 de: ${JSON.stringify(ALL_VECTORS)}.
-    4. ABPxODS: Tria'n 2 de: ${JSON.stringify(ALL_ABP_COMPETENCIES)}.
-    5. Eixos Escola: Tria'n 1 o 2 de: ${JSON.stringify(ALL_SCHOOL_AXES)}.
-  `;
-
-  const response = await ai.models.generateContent({
-    model: MODEL_NAME,
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: phase2Schema,
-      safetySettings: safetySettings,
-    },
-  });
-
-  if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
-  return JSON.parse(cleanJson(response.text)) as Phase2Structure;
+    try {
+      return JSON.parse(cleanJson(response.text)) as Phase2Structure;
+    } catch (e) {
+      console.error("JSON Error:", response.text);
+      throw new Error("No s'ha pogut llegir el format de la resposta de la IA.");
+    }
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error; // Re-throw to be caught by App.tsx
+  }
 };
 
 export const generateStrategy = async (input: Phase1Input, structure: Phase2Structure): Promise<Phase3Strategy> => {
@@ -200,7 +221,7 @@ export const generateStrategy = async (input: Phase1Input, structure: Phase2Stru
     },
   });
 
-  if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
+  if (!response.text) throw new Error("Text buit rebut del model.");
   return JSON.parse(cleanJson(response.text)) as Phase3Strategy;
 };
 
@@ -228,7 +249,7 @@ export const generateSequence = async (input: Phase1Input, structure: Phase2Stru
     },
   });
 
-  if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
+  if (!response.text) throw new Error("Text buit rebut del model.");
   const data = JSON.parse(cleanJson(response.text)) as { sequence: PhaseSequence[] };
   return data.sequence;
 };
@@ -277,7 +298,7 @@ export const generateStudentWorksheets = async (sequence: PhaseSequence[], confi
     },
   });
 
-  if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
+  if (!response.text) throw new Error("Text buit rebut del model.");
   const data = JSON.parse(cleanJson(response.text)) as { worksheets: StudentWorksheet[] };
   return data.worksheets;
 };
