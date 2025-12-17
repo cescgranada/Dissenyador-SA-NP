@@ -1,7 +1,8 @@
-import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
-import { Phase1Input, Phase2Structure, Phase3Strategy, PhaseSequence, EvaluationTool, ActivityConfig, StudentWorksheet, ALL_SDGS, ALL_VECTORS, ALL_ABP_COMPETENCIES, ALL_SCHOOL_AXES } from "../types";
+import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { Phase1Input, Phase2Structure, Phase3Strategy, PhaseSequence, EvaluationTool, ActivityConfig, StudentWorksheet } from "../types";
 
-const MODEL_NAME = "gemini-3-flash-preview";
+// Using gemini-3-pro-preview for complex pedagogical reasoning, curricular alignment, and planning tasks
+const MODEL_NAME = "gemini-3-pro-preview";
 
 // --- SAFETY SETTINGS ---
 const safetySettings = [
@@ -11,35 +12,20 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-// Helper to get the AI client lazily.
-const getAiClient = () => {
-  // Busquem la clau a process.env (injectada per Vite) o import.meta.env (natiu de Vite)
-  const apiKey = process.env.API_KEY || (import.meta as any).env?.VITE_API_KEY || '';
-
-  if (!apiKey || apiKey.trim() === '') {
-    throw new Error(
-      "No s'ha trobat l'API KEY. \n\n" +
-      "PAS DE SEGURETAT FINAL A VERCEL:\n" +
-      "1. Assegura't que has creat 'VITE_API_KEY' a Settings > Environment Variables.\n" +
-      "2. IMPORTANTÍSSIM: Un cop creada la variable, has d'anar a la pestanya 'Deployments', fer clic als tres punts de l'últim intent i triar 'REDEPLOY' (sense memòria cau si és possible). Les claus noves NO s'apliquen a webs que ja estan publicades fins que no es tornen a 'construir'."
-    );
-  }
-  return new GoogleGenAI({ apiKey: apiKey });
-};
-
 // Helper to robustly clean JSON string from markdown or extra text
-const cleanJson = (text: string) => {
+const cleanJson = (text: string | undefined) => {
   if (!text) return "{}";
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
+  const trimmed = text.trim();
+  const start = trimmed.indexOf('{');
+  const end = trimmed.lastIndexOf('}');
   if (start !== -1 && end !== -1 && end > start) {
-    return text.substring(start, end + 1);
+    return trimmed.substring(start, end + 1);
   }
-  return text.replace(/```json/g, '').replace(/```/g, '').trim();
+  return trimmed.replace(/```json/g, '').replace(/```/g, '').trim();
 };
 
 // --- SCHEMAS ---
-const phase2Schema: Schema = {
+const phase2Schema = {
   type: Type.OBJECT,
   properties: {
     generalObjective: { type: Type.STRING },
@@ -53,7 +39,7 @@ const phase2Schema: Schema = {
   required: ["generalObjective", "specificCompetencies", "essentialKnowledge", "sdgs", "curriculumVectors", "abpCompetencies", "schoolAxes"],
 };
 
-const phase3StrategySchema: Schema = {
+const phase3StrategySchema = {
   type: Type.OBJECT,
   properties: {
     phases: {
@@ -76,7 +62,7 @@ const phase3StrategySchema: Schema = {
   required: ["phases"]
 };
 
-const phaseSequenceSchema: Schema = {
+const phaseSequenceSchema = {
   type: Type.OBJECT,
   properties: {
     sequence: {
@@ -108,7 +94,7 @@ const phaseSequenceSchema: Schema = {
   required: ["sequence"]
 };
 
-const studentWorksheetsSchema: Schema = {
+const studentWorksheetsSchema = {
   type: Type.OBJECT,
   properties: {
     worksheets: {
@@ -131,7 +117,7 @@ const studentWorksheetsSchema: Schema = {
   required: ["worksheets"]
 };
 
-const evaluationToolsSchema: Schema = {
+const evaluationToolsSchema = {
   type: Type.OBJECT,
   properties: {
     tools: {
@@ -154,10 +140,11 @@ const evaluationToolsSchema: Schema = {
 // --- FUNCTIONS ---
 
 export const generateStructure = async (input: Phase1Input): Promise<Phase2Structure> => {
-  const ai = getAiClient();
+  // Direct client initialization with the environment-provided API key
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Genera estructura curricular per: ${input.topic}. Producte: ${input.product}. Curs: ${input.grade}.`,
+    model: MODEL_NAME,
+    contents: `Genera estructura curricular per: ${input.topic}. Producte: ${input.product}. Curs: ${input.grade}. Basat en Decret 175/2022.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: phase2Schema,
@@ -168,10 +155,10 @@ export const generateStructure = async (input: Phase1Input): Promise<Phase2Struc
 };
 
 export const generateStrategy = async (input: Phase1Input, structure: Phase2Structure): Promise<Phase3Strategy> => {
-  const ai = getAiClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Genera estratègia didàctica per: ${input.topic}. Objectiu: ${structure.generalObjective}.`,
+    model: MODEL_NAME,
+    contents: `Genera estratègia didàctica DUA per: ${input.topic}. Objectiu: ${structure.generalObjective}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: phase3StrategySchema,
@@ -182,10 +169,10 @@ export const generateStrategy = async (input: Phase1Input, structure: Phase2Stru
 };
 
 export const generateSequence = async (input: Phase1Input, structure: Phase2Structure, strategy: Phase3Strategy): Promise<PhaseSequence[]> => {
-  const ai = getAiClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Genera seqüència d'activitats per: ${input.topic}.`,
+    model: MODEL_NAME,
+    contents: `Genera seqüència d'activitats per: ${input.topic}. Alineades amb Bloom i DUA.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: phaseSequenceSchema,
@@ -197,10 +184,10 @@ export const generateSequence = async (input: Phase1Input, structure: Phase2Stru
 };
 
 export const generateStudentWorksheets = async (sequence: PhaseSequence[], configs: ActivityConfig[], structure: Phase2Structure): Promise<StudentWorksheet[]> => {
-  const ai = getAiClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Genera fitxes de treball DUA per les activitats.`,
+    model: MODEL_NAME,
+    contents: `Genera fitxes de treball DUA amb bastides de seguiment i metacognició.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: studentWorksheetsSchema,
@@ -212,10 +199,10 @@ export const generateStudentWorksheets = async (sequence: PhaseSequence[], confi
 };
 
 export const generateTools = async (worksheets: StudentWorksheet[], configs: ActivityConfig[]): Promise<EvaluationTool[]> => {
-  const ai = getAiClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Genera instruments d'avaluació docent.`,
+    model: MODEL_NAME,
+    contents: `Genera rúbriques o llistes de control en format Markdown.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: evaluationToolsSchema,

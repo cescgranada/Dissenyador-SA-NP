@@ -3,12 +3,11 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Carreguem totes les variables d'entorn disponibles sense prefix (per agafar API_KEY de Vercel)
-  const env = loadEnv(mode, (process as any).cwd(), '');
+  // Use '.' instead of process.cwd() to avoid TypeScript errors on the global process object while still loading local env files
+  const env = loadEnv(mode, '.', '');
 
-  // Prioritat de cerca de la clau:
-  // 1. Variable d'entorn real de Node (process.env)
-  // 2. Variable carregada des de .env o Vercel (env)
+  // Busquem la clau prioritzant el prefix VITE_ (estàndard Vite) 
+  // però acceptant API_KEY (estàndard Vercel)
   const apiKey = 
     process.env.VITE_API_KEY || 
     process.env.API_KEY || 
@@ -16,12 +15,13 @@ export default defineConfig(({ mode }) => {
     env.API_KEY || 
     '';
 
-  console.log(`[Build Log] Clau detectada: ${apiKey ? 'SÍ' : 'NO'}`);
+  // Aquest log apareixerà a la consola de Vercel durant el Deployment
+  console.log(`[Vite Build] API Key detectada: ${apiKey ? 'SÍ' : 'NO'}`);
 
   return {
     plugins: [react()],
     define: {
-      // Això substitueix literalment "process.env.API_KEY" pel valor real de la clau en el codi final
+      // Injectem la clau directament al codi
       'process.env.API_KEY': JSON.stringify(apiKey)
     }
   }
