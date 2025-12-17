@@ -13,7 +13,6 @@ const safetySettings = [
 ];
 
 // Helper to get the AI client lazily.
-// This prevents the app from crashing on white screen if the API key is missing at startup.
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
@@ -165,7 +164,8 @@ export const generateStructure = async (input: Phase1Input): Promise<Phase2Struc
     },
   });
 
-  return JSON.parse(response.text!) as Phase2Structure;
+  if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
+  return JSON.parse(response.text) as Phase2Structure;
 };
 
 export const generateStrategy = async (input: Phase1Input, structure: Phase2Structure): Promise<Phase3Strategy> => {
@@ -196,7 +196,8 @@ export const generateStrategy = async (input: Phase1Input, structure: Phase2Stru
     },
   });
 
-  return JSON.parse(response.text!) as Phase3Strategy;
+  if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
+  return JSON.parse(response.text) as Phase3Strategy;
 };
 
 export const generateSequence = async (input: Phase1Input, structure: Phase2Structure, strategy: Phase3Strategy): Promise<PhaseSequence[]> => {
@@ -223,7 +224,8 @@ export const generateSequence = async (input: Phase1Input, structure: Phase2Stru
     },
   });
 
-  const data = JSON.parse(response.text!) as { sequence: PhaseSequence[] };
+  if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
+  const data = JSON.parse(response.text) as { sequence: PhaseSequence[] };
   return data.sequence;
 };
 
@@ -271,7 +273,8 @@ export const generateStudentWorksheets = async (sequence: PhaseSequence[], confi
     },
   });
 
-  const data = JSON.parse(response.text!) as { worksheets: StudentWorksheet[] };
+  if (!response.text) throw new Error("No s'ha rebut resposta del model (Text buit).");
+  const data = JSON.parse(response.text) as { worksheets: StudentWorksheet[] };
   return data.worksheets;
 };
 
@@ -322,7 +325,7 @@ export const generateTools = async (worksheets: StudentWorksheet[], configs: Act
       config: {
         responseMimeType: "application/json",
         responseSchema: evaluationToolsSchema,
-        safetySettings: safetySettings, // IMPORTANT: Prevent blocking of "judgmental" content
+        safetySettings: safetySettings,
       },
     });
 
