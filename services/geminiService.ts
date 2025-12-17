@@ -13,9 +13,18 @@ const safetySettings = [
 
 // Helper to get the AI client lazily.
 const getAiClient = () => {
+  // Use process.env.API_KEY exclusively as per guidelines.
+  // This value is polyfilled by vite.config.ts define.
   const apiKey = process.env.API_KEY;
+
   if (!apiKey || apiKey.trim() === '') {
-    throw new Error("No s'ha trobat l'API KEY. Comprova la configuració a Vercel (Settings > Environment Variables > API_KEY) i assegura't que has fet un 'Redeploy' després d'afegir-la.");
+    throw new Error(
+      "No s'ha trobat l'API KEY. \n\n" +
+      "SOLUCIÓ RECOMANADA:\n" +
+      "1. Ves a Vercel > Settings > Environment Variables.\n" +
+      "2. Afegeix una nova variable anomenada 'API_KEY' amb la teva clau.\n" +
+      "3. Torna a fer un Redeploy."
+    );
   }
   return new GoogleGenAI({ apiKey: apiKey });
 };
@@ -119,7 +128,7 @@ const studentWorksheetsSchema: Schema = {
           objectives: { type: Type.ARRAY, items: { type: Type.STRING } },
           tasks: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Seqüència de tasques pas a pas, incorporant opcions DUA." },
           deliveryFormat: { type: Type.STRING },
-          scaffoldChecklist: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Llista de comprovació (bastida) per al seguiment." },
+          scaffoldChecklist: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Llista de comprovació (bastida) i preguntes d'autoregulació." },
           isEvaluable: { type: Type.BOOLEAN }
         },
         required: ["activityTitle", "context", "objectives", "tasks", "deliveryFormat", "scaffoldChecklist"]
@@ -156,7 +165,7 @@ export const generateStructure = async (input: Phase1Input): Promise<Phase2Struc
     const ai = getAiClient();
     const prompt = `
       Actua com un expert docent i dissenyador curricular a Catalunya.
-      Genera l'estructura curricular per a una SA:
+      Genera l'estructura curricular per a una SA inclusiva i rigorosa:
       - Tema: ${input.topic}
       - Producte: ${input.product}
       - Àmbit: ${input.area}
@@ -196,19 +205,21 @@ export const generateStructure = async (input: Phase1Input): Promise<Phase2Struc
 export const generateStrategy = async (input: Phase1Input, structure: Phase2Structure): Promise<Phase3Strategy> => {
   const ai = getAiClient();
   const prompt = `
-    Genera una ESTRATÈGIA didàctica (PLANIFICACIÓ) per a la SA "${input.topic}".
+    Genera una ESTRATÈGIA didàctica (PLANIFICACIÓ) detallada per a la SA "${input.topic}".
     Objectiu Global: ${structure.generalObjective}
     Durada total: ${input.duration} hores.
 
-    Divideix en 4 fases: Inicials, Desenvolupament, Síntesi, Aplicació.
+    AVALUACIÓ CONTÍNUA:
+    L'estratègia ha de preveure moments d'avaluació diagnòstica, formativa (regulació) i sumativa. No limitis l'avaluació al final.
+
+    Divideix en 4 fases: Inicials (Diagnòstic/Motivació), Desenvolupament (Construcció del coneixement), Síntesi (Estructuració/Creació), Aplicació (Transferència/Producte).
     
     PER A CADA FASE:
-    1. Objectius d'aprenentatge específics de la fase.
-    2. Descripció de l'enfocament: Explica QUÈ es vol aconseguir i COM s'enfocarà metodològicament (Ex: "S'utilitzaran rutines de pensament per..."). 
-       IMPORTANT: NO PROPOSIS ACTIVITATS CONCRETES ENCARA. Parla d'estratègies.
+    1. Objectius d'aprenentatge específics.
+    2. Descripció de l'enfocament: Explica QUÈ es fa i COM es regula l'aprenentatge.
     3. Dedicació horària estimada i nombre aproximat d'activitats.
     4. Nivell de Bloom predominant.
-    5. Referència DUA (Pautes i principis aplicats).
+    5. Referència DUA: Especifica com s'apliquen els principis de Representació, Acció/Expressió i Implicació en aquesta fase concreta.
   `;
 
   const response = await ai.models.generateContent({
@@ -235,8 +246,7 @@ export const generateSequence = async (input: Phase1Input, structure: Phase2Stru
     - Objectiu: ${structure.generalObjective}
     - Estratègia prèvia: ${JSON.stringify(strategy)}
 
-    Genera les activitats específiques per a les 4 fases. 
-    Sigues creatiu i concreta les tasques.
+    Genera activitats variades que fomentin l'avaluació contínua (autoavaluació, coavaluació, feedback docent) i que siguin inclusives (DUA).
   `;
 
   const response = await ai.models.generateContent({
@@ -257,33 +267,31 @@ export const generateSequence = async (input: Phase1Input, structure: Phase2Stru
 export const generateStudentWorksheets = async (sequence: PhaseSequence[], configs: ActivityConfig[], structure: Phase2Structure): Promise<StudentWorksheet[]> => {
   const ai = getAiClient();
   const prompt = `
-    Genera les FITXES DE TREBALL PER A L'ALUMNAT.
+    Genera les FITXES DE TREBALL PER A L'ALUMNAT amb un enfocament rigorós en DUA i Avaluació Contínua.
 
-    ELEMENTS ESTRUCTURALS QUE HAN DE QUEDAR REFLECTITS A LES FITXES:
-    Aquestes fitxes han de demostrar que s'està treballant:
+    CONTEXT I VALORS:
     - ODS: ${structure.sdgs.join(', ')}
-    - Vectors del currículum: ${structure.curriculumVectors.join(', ')}
-    - Competències ABPxODS: ${structure.abpCompetencies.join(', ')}
-    - Eixos de l'escola: ${structure.schoolAxes.join(', ')}
+    - Vectors: ${structure.curriculumVectors.join(', ')}
     
-    PRINCIPIS DUA (Disseny Universal per a l'Aprenentatge):
-    És IMPRESCINDIBLE que les tasques i instruccions siguin inclusives. 
-    - Ofereix múltiples formes de representació (ex: "llegeix el text o mira el vídeo", "consulta el gràfic").
-    - Ofereix opcions d'acció i expressió (ex: "pots entregar un pòster, un podcast o una redacció").
-    - Fomenta el compromís (connecta amb interessos reals).
+    DISSENY UNIVERSAL PER A L'APRENENTATGE (DUA):
+    És IMPRESCINDIBLE oferir opcions explícites. No diguis "fes l'activitat", sinó "pots fer l'activitat d'aquesta manera A o d'aquesta manera B".
+    - Representació: Ofereix alternatives visuals/auditives a la informació.
+    - Acció i Expressió: Permet múltiples formats de resposta (escrit, oral, gràfic, vídeo).
 
-    Llista d'activitats i configuració:
-    ${JSON.stringify(configs)}
+    AVALUACIÓ FORMATIVA I AUTOREGULACIÓ:
+    Les fitxes han d'ajudar l'alumne a aprendre a aprendre.
 
-    Detall de les activitats de la seqüència:
-    ${JSON.stringify(sequence)}
+    Llista d'activitats: ${JSON.stringify(configs)}
+    Detall: ${JSON.stringify(sequence)}
 
     Per a CADA activitat, genera una fitxa amb:
-    1. Explicació del context: Breu introducció per a l'alumne que connecti l'activitat amb els ODS, vectors o eixos esmentats.
-    2. Objectius de l'activitat: Clars i en llenguatge proper a l'alumne.
-    3. Seqüència de tasques a realitzar: Pas a pas. IMPORTANT: Incorpora opcions DUA explícites dins els passos (ex: "Pas 2: Informa't sobre el tema (pots triar entre llegir l'article A o veure el vídeo B)").
-    4. Format de lliurament: Especifica el format, recordant oferir flexibilitat (DUA) si el tipus d'activitat ho permet, i tenint en compte si és grup o individual.
-    5. Bastida de seguiment (Checklist): Llista de comprovació perquè l'alumne s'autoreguli.
+    1. Context motivador connectat amb ODS/Vectors.
+    2. Objectius clars (Què aprendré?).
+    3. Seqüència de tasques: Incorpora opcions DUA explícites dins els passos.
+    4. Format de lliurament: Flexible segons DUA.
+    5. Bastida de seguiment (Checklist): 
+       - Inclou passos de verificació de la tasca.
+       - INCLOU PREGUNTES DE METACOGNICIÓ (ex: "Què m'ha costat més?", "Com ho he resolt?").
     
     IMPORTANT: Marca 'isEvaluable' com a true si la configuració ho indicava.
   `;
@@ -329,8 +337,10 @@ export const generateTools = async (worksheets: StudentWorksheet[], configs: Act
     );
 
     const prompt = `
-      Actua com un expert en avaluació educativa.
+      Actua com un expert en avaluació educativa (avaluació per competències).
       Genera les EINES D'AVALUACIÓ PER AL DOCENT.
+      
+      Enfocament: Avaluació formativa i formadora (al servei de l'aprenentatge), no només qualificadora.
       
       Llista d'activitats a avaluar i l'instrument sol·licitat:
       ${JSON.stringify(evaluationRequests)}
@@ -339,9 +349,9 @@ export const generateTools = async (worksheets: StudentWorksheet[], configs: Act
       ${JSON.stringify(relevantWorksheets)}
 
       Genera l'eina d'avaluació específica sol·licitada per a cada activitat.
+      Assegura't que els criteris d'avaluació són clars, graduats (en cas de rúbriques) i connectats amb els objectius.
       
       IMPORTANT: El camp 'content' ha de ser en format MARKDOWN net (taules, llistes de comprovació, etc.).
-      Assegura't que el format JSON és vàlid i que les cadenes de text (com el markdown dins de 'content') estan ben escapades.
     `;
 
     const response = await ai.models.generateContent({
