@@ -14,16 +14,17 @@ const safetySettings = [
 // Helper to get the AI client lazily.
 const getAiClient = () => {
   // Use process.env.API_KEY exclusively as per guidelines.
-  // This value is polyfilled by vite.config.ts define.
+  // This value is polyfilled by vite.config.ts define to ensure it captures VITE_API_KEY or API_KEY.
   const apiKey = process.env.API_KEY;
 
   if (!apiKey || apiKey.trim() === '') {
     throw new Error(
       "No s'ha trobat l'API KEY. \n\n" +
-      "SOLUCIÓ RECOMANADA:\n" +
-      "1. Ves a Vercel > Settings > Environment Variables.\n" +
-      "2. Afegeix una nova variable anomenada 'API_KEY' amb la teva clau.\n" +
-      "3. Torna a fer un Redeploy."
+      "SOLUCIÓ RECOMANADA (Vercel):\n" +
+      "1. Ves a Settings > Environment Variables.\n" +
+      "2. Crea una nova variable anomenada 'VITE_API_KEY' amb la teva clau.\n" +
+      "3. Esborra l'antiga 'API_KEY' si vols evitar confusions.\n" +
+      "4. Fes un 'Redeploy' a la secció Deployments."
     );
   }
   return new GoogleGenAI({ apiKey: apiKey });
