@@ -1,10 +1,11 @@
+
 import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Phase1Input, Phase2Structure, Phase3Strategy, PhaseSequence, EvaluationTool, ActivityConfig, StudentWorksheet } from "../types";
 
-// Using gemini-3-pro-preview for complex pedagogical reasoning, curricular alignment, and planning tasks
+// Utilitzem gemini-3-pro-preview per a tasques complexes de disseny pedagògic
 const MODEL_NAME = "gemini-3-pro-preview";
 
-// --- SAFETY SETTINGS ---
+// --- CONFIGURACIÓ DE SEGURETAT ---
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -12,7 +13,7 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-// Helper to robustly clean JSON string from markdown or extra text
+// Funció per netejar el JSON que retorna la IA
 const cleanJson = (text: string | undefined) => {
   if (!text) return "{}";
   const trimmed = text.trim();
@@ -24,7 +25,7 @@ const cleanJson = (text: string | undefined) => {
   return trimmed.replace(/```json/g, '').replace(/```/g, '').trim();
 };
 
-// --- SCHEMAS ---
+// --- ESQUEMES DE RESPOSTA ---
 const phase2Schema = {
   type: Type.OBJECT,
   properties: {
@@ -137,18 +138,18 @@ const evaluationToolsSchema = {
   required: ["tools"]
 };
 
-// --- FUNCTIONS ---
+// --- FUNCIONS DE GENERACIÓ ---
 
 export const generateStructure = async (input: Phase1Input): Promise<Phase2Structure> => {
-  // Direct client initialization with the environment-provided API key
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Move safetySettings out of config to the top-level parameters
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
-    contents: `Genera estructura curricular per: ${input.topic}. Producte: ${input.product}. Curs: ${input.grade}. Basat en Decret 175/2022.`,
+    contents: `Genera estructura curricular per: ${input.topic}. Producte: ${input.product}. Curs: ${input.grade}. Basat en Decret 175/2022 de la Generalitat de Catalunya.`,
+    safetySettings,
     config: {
       responseMimeType: "application/json",
       responseSchema: phase2Schema,
-      safetySettings,
     },
   });
   return JSON.parse(cleanJson(response.text));
@@ -156,13 +157,14 @@ export const generateStructure = async (input: Phase1Input): Promise<Phase2Struc
 
 export const generateStrategy = async (input: Phase1Input, structure: Phase2Structure): Promise<Phase3Strategy> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Move safetySettings out of config to the top-level parameters
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
     contents: `Genera estratègia didàctica DUA per: ${input.topic}. Objectiu: ${structure.generalObjective}.`,
+    safetySettings,
     config: {
       responseMimeType: "application/json",
       responseSchema: phase3StrategySchema,
-      safetySettings,
     },
   });
   return JSON.parse(cleanJson(response.text));
@@ -170,13 +172,14 @@ export const generateStrategy = async (input: Phase1Input, structure: Phase2Stru
 
 export const generateSequence = async (input: Phase1Input, structure: Phase2Structure, strategy: Phase3Strategy): Promise<PhaseSequence[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Move safetySettings out of config to the top-level parameters
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
     contents: `Genera seqüència d'activitats per: ${input.topic}. Alineades amb Bloom i DUA.`,
+    safetySettings,
     config: {
       responseMimeType: "application/json",
       responseSchema: phaseSequenceSchema,
-      safetySettings,
     },
   });
   const data = JSON.parse(cleanJson(response.text));
@@ -185,13 +188,14 @@ export const generateSequence = async (input: Phase1Input, structure: Phase2Stru
 
 export const generateStudentWorksheets = async (sequence: PhaseSequence[], configs: ActivityConfig[], structure: Phase2Structure): Promise<StudentWorksheet[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Move safetySettings out of config to the top-level parameters
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
-    contents: `Genera fitxes de treball DUA amb bastides de seguiment i metacognició.`,
+    contents: `Genera fitxes de treball DUA per l'alumnat amb bastides de seguiment i metacognició.`,
+    safetySettings,
     config: {
       responseMimeType: "application/json",
       responseSchema: studentWorksheetsSchema,
-      safetySettings,
     },
   });
   const data = JSON.parse(cleanJson(response.text));
@@ -200,13 +204,14 @@ export const generateStudentWorksheets = async (sequence: PhaseSequence[], confi
 
 export const generateTools = async (worksheets: StudentWorksheet[], configs: ActivityConfig[]): Promise<EvaluationTool[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Move safetySettings out of config to the top-level parameters
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
-    contents: `Genera rúbriques o llistes de control en format Markdown.`,
+    contents: `Genera rúbriques o llistes de control detallades en format Markdown.`,
+    safetySettings,
     config: {
       responseMimeType: "application/json",
       responseSchema: evaluationToolsSchema,
-      safetySettings,
     },
   });
   const data = JSON.parse(cleanJson(response.text));
