@@ -3,20 +3,22 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
-  // The last parameter '' ensures we load all env vars, not just VITE_ ones locally.
+  // Carrega les variables de l'entorn local (.env) si n'hi ha.
   const env = loadEnv(mode, (process as any).cwd(), '');
 
-  // Robustly find the API KEY. 
-  // Priority: VITE_API_KEY (Standard for Vite) > API_KEY (Generic)
-  // We check both process.env (System/Vercel) and env (.env files)
+  // ESTRATÈGIA DE CERCA DE LA CLAU:
+  // 1. process.env.VITE_API_KEY (Prioritari a Vercel)
+  // 2. process.env.API_KEY (Alternativa)
+  // 3. env.VITE_API_KEY (Local .env)
+  // 4. env.API_KEY (Local .env antic)
   const apiKey = process.env.VITE_API_KEY || process.env.API_KEY || env.VITE_API_KEY || env.API_KEY || '';
+
+  console.log(`[Vite Build] API Key detected: ${apiKey ? 'Yes (Hidden)' : 'No'}`);
 
   return {
     plugins: [react()],
     define: {
-      // Manually define process.env.API_KEY so it's available in the client code
-      // regardless of how it was named in the environment variables.
+      // Injectem la clau globalment perquè estigui disponible com a process.env.API_KEY
       'process.env.API_KEY': JSON.stringify(apiKey)
     }
   }

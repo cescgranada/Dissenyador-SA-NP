@@ -14,10 +14,18 @@ const safetySettings = [
 // Helper to get the AI client lazily.
 const getAiClient = () => {
   // INTENT DE RECUPERACIÓ ROBUSTA DE LA CLAU:
-  // 1. process.env.API_KEY: Inserit pel 'define' de vite.config.ts (mètode clàssic).
-  // 2. import.meta.env.VITE_API_KEY: Mètode natiu de Vite per a variables que comencen per VITE_.
-  // 3. Fallback buit per evitar errors de 'undefined'.
-  const apiKey = process.env.API_KEY || (import.meta as any).env?.VITE_API_KEY || '';
+  // Canviem l'ordre: Primer mirem import.meta.env (natiu de Vite), després process.env.
+  const viteKey = (import.meta as any).env?.VITE_API_KEY;
+  const processKey = process.env.API_KEY;
+  
+  const apiKey = viteKey || processKey || '';
+
+  // Debugging log (visible a la consola del navegador amb F12)
+  console.log("Checking API Keys...", { 
+    hasViteKey: !!viteKey, 
+    hasProcessKey: !!processKey,
+    finalKeyLength: apiKey.length 
+  });
 
   if (!apiKey || apiKey.trim() === '') {
     throw new Error(
