@@ -13,27 +13,17 @@ const safetySettings = [
 
 // Helper to get the AI client lazily.
 const getAiClient = () => {
-  // INTENT DE RECUPERACIÓ ROBUSTA DE LA CLAU:
-  // Canviem l'ordre: Primer mirem import.meta.env (natiu de Vite), després process.env.
-  const viteKey = (import.meta as any).env?.VITE_API_KEY;
-  const processKey = process.env.API_KEY;
-  
-  const apiKey = viteKey || processKey || '';
-
-  // Debugging log (visible a la consola del navegador amb F12)
-  console.log("Checking API Keys...", { 
-    hasViteKey: !!viteKey, 
-    hasProcessKey: !!processKey,
-    finalKeyLength: apiKey.length 
-  });
+  // Use process.env.API_KEY exclusively as per guidelines.
+  const apiKey = process.env.API_KEY || '';
 
   if (!apiKey || apiKey.trim() === '') {
+    console.error("CRITICAL ERROR: API Key is missing.");
     throw new Error(
       "No s'ha trobat l'API KEY. \n\n" +
-      "SOLUCIÓ RECOMANADA (Vercel):\n" +
-      "1. Assegura't que has definit la variable 'VITE_API_KEY' a Vercel (Settings > Environment Variables).\n" +
-      "2. IMPORTANT: Has de fer un PUSH a GitHub amb els últims canvis de codi perquè Vercel els apliqui.\n" +
-      "3. Si ja ho has fet, prova de fer un 'Redeploy' sense fer servir la memòria cau."
+      "SI ESTÀS A VERCEL:\n" +
+      "1. Ves a Settings > Environment Variables.\n" +
+      "2. Crea una variable anomenada 'API_KEY' amb la clau.\n" +
+      "3. IMPORTANT: Ves a la pestanya 'Deployments', fes clic als 3 puntets de l'últim deploy i selecciona 'Redeploy' (NO Promote, sinó Redeploy) perquè es torni a construir amb la nova clau."
     );
   }
   return new GoogleGenAI({ apiKey: apiKey });
