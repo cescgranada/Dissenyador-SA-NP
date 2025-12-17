@@ -1,9 +1,6 @@
 import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Phase1Input, Phase2Structure, Phase3Strategy, PhaseSequence, EvaluationTool, ActivityConfig, StudentWorksheet, ALL_SDGS, ALL_VECTORS, ALL_ABP_COMPETENCIES, ALL_SCHOOL_AXES } from "../types";
 
-const apiKey = process.env.API_KEY;
-const ai = new GoogleGenAI({ apiKey: apiKey });
-
 const MODEL_NAME = "gemini-2.5-flash";
 
 // --- SAFETY SETTINGS ---
@@ -14,6 +11,16 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
+
+// Helper to get the AI client lazily.
+// This prevents the app from crashing on white screen if the API key is missing at startup.
+const getAiClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("No s'ha trobat l'API KEY. Assegura't que està configurada a l'arxiu .env o a les variables d'entorn de Vercel.");
+  }
+  return new GoogleGenAI({ apiKey: apiKey });
+};
 
 // --- SCHEMAS ---
 
@@ -132,6 +139,7 @@ const evaluationToolsSchema: Schema = {
 // --- FUNCTIONS ---
 
 export const generateStructure = async (input: Phase1Input): Promise<Phase2Structure> => {
+  const ai = getAiClient();
   const prompt = `
     Actua com un expert docent i dissenyador curricular a Catalunya.
     Genera l'estructura curricular per a una SA:
@@ -161,6 +169,7 @@ export const generateStructure = async (input: Phase1Input): Promise<Phase2Struc
 };
 
 export const generateStrategy = async (input: Phase1Input, structure: Phase2Structure): Promise<Phase3Strategy> => {
+  const ai = getAiClient();
   const prompt = `
     Genera una ESTRATÈGIA didàctica (PLANIFICACIÓ) per a la SA "${input.topic}".
     Objectiu Global: ${structure.generalObjective}
@@ -191,6 +200,7 @@ export const generateStrategy = async (input: Phase1Input, structure: Phase2Stru
 };
 
 export const generateSequence = async (input: Phase1Input, structure: Phase2Structure, strategy: Phase3Strategy): Promise<PhaseSequence[]> => {
+  const ai = getAiClient();
   const prompt = `
     Ara, basant-te en l'estratègia definida, crea la SEQÜÈNCIA D'ACTIVITATS CONCRETES.
     
@@ -218,6 +228,7 @@ export const generateSequence = async (input: Phase1Input, structure: Phase2Stru
 };
 
 export const generateStudentWorksheets = async (sequence: PhaseSequence[], configs: ActivityConfig[], structure: Phase2Structure): Promise<StudentWorksheet[]> => {
+  const ai = getAiClient();
   const prompt = `
     Genera les FITXES DE TREBALL PER A L'ALUMNAT.
 
@@ -266,6 +277,7 @@ export const generateStudentWorksheets = async (sequence: PhaseSequence[], confi
 
 export const generateTools = async (worksheets: StudentWorksheet[], configs: ActivityConfig[]): Promise<EvaluationTool[]> => {
   try {
+    const ai = getAiClient();
     // Find evaluable configs, ignoring those explicitly marked as "Cap instrument"
     const evaluableConfigs = configs.filter(c => c.isEvaluable && c.selectedInstrument !== 'Cap instrument');
     

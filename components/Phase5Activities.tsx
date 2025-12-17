@@ -141,12 +141,49 @@ display(Markdown(content))
 
   // --- EDIT HELPERS ---
 
-  const handleBloomChange = (phaseIndex: number, activityIndex: number, newValue: string) => {
+  const handlePhaseUpdate = (phaseIndex: number, field: 'phaseName' | 'phaseObjective', value: string) => {
     const newSequence = [...editableSequence];
-    newSequence[phaseIndex].activities[activityIndex] = {
-      ...newSequence[phaseIndex].activities[activityIndex],
-      bloomLevel: newValue
-    };
+    newSequence[phaseIndex] = { ...newSequence[phaseIndex], [field]: value };
+    setEditableSequence(newSequence);
+  };
+
+  const handleActivityUpdate = (phaseIndex: number, activityIndex: number, field: keyof Activity, value: string) => {
+    const newSequence = [...editableSequence];
+    const updatedActivity = { ...newSequence[phaseIndex].activities[activityIndex], [field]: value };
+    newSequence[phaseIndex].activities[activityIndex] = updatedActivity;
+    setEditableSequence(newSequence);
+  };
+
+  const handleAddActivity = (phaseIndex: number) => {
+    const newSequence = [...editableSequence];
+    newSequence[phaseIndex].activities.push({
+      title: 'Nova Activitat',
+      description: '',
+      bloomLevel: 'Comprendre',
+      methodology: '',
+      duration: '30 min'
+    });
+    setEditableSequence(newSequence);
+  };
+
+  const handleRemoveActivity = (phaseIndex: number, activityIndex: number) => {
+    if (window.confirm("Estàs segur de voler eliminar aquesta activitat?")) {
+      const newSequence = [...editableSequence];
+      newSequence[phaseIndex].activities.splice(activityIndex, 1);
+      setEditableSequence(newSequence);
+    }
+  };
+
+  const handleMoveActivity = (phaseIndex: number, activityIndex: number, direction: 'up' | 'down') => {
+    const newSequence = [...editableSequence];
+    const activities = newSequence[phaseIndex].activities;
+    
+    if (direction === 'up' && activityIndex > 0) {
+      [activities[activityIndex], activities[activityIndex - 1]] = [activities[activityIndex - 1], activities[activityIndex]];
+    } else if (direction === 'down' && activityIndex < activities.length - 1) {
+      [activities[activityIndex], activities[activityIndex + 1]] = [activities[activityIndex + 1], activities[activityIndex]];
+    }
+    
     setEditableSequence(newSequence);
   };
 
@@ -200,19 +237,32 @@ display(Markdown(content))
 
             return (
               <div key={phaseIdx} className="p-6 bg-white">
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                    <span className="text-indigo-600 font-mono text-xl">{phaseIdx + 1}.</span> {phase.phaseName}
-                  </h3>
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mt-2 md:mt-0">
-                      <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-400 uppercase">Objectiu:</span>
-                          <span className="text-sm text-slate-700 font-medium truncate max-w-xs" title={phase.phaseObjective}>
-                          {phase.phaseObjective}
-                          </span>
-                      </div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 bg-indigo-50/50 p-4 rounded-lg border border-indigo-100">
+                  <div className="flex-1 w-full">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-indigo-600 font-mono text-xl font-bold">{phaseIdx + 1}.</span>
+                      <input
+                        type="text"
+                        value={phase.phaseName}
+                        onChange={(e) => handlePhaseUpdate(phaseIdx, 'phaseName', e.target.value)}
+                        className="font-bold text-slate-900 text-lg bg-[#FAFDFE] border border-indigo-200 rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none w-full transition-colors placeholder-[#AAB4C8]"
+                        placeholder="Nom de la fase"
+                      />
+                    </div>
+                    <div className="flex items-start gap-2 pl-7">
+                        <span className="text-xs font-bold text-slate-400 uppercase mt-1">Objectiu:</span>
+                        <textarea
+                          value={phase.phaseObjective}
+                          onChange={(e) => handlePhaseUpdate(phaseIdx, 'phaseObjective', e.target.value)}
+                          className="text-sm text-slate-700 font-medium bg-[#FAFDFE] border border-indigo-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none w-full transition-colors resize-none placeholder-[#AAB4C8]"
+                          rows={2}
+                          placeholder="Objectiu de la fase..."
+                        />
+                    </div>
+                  </div>
+                  <div className="mt-4 md:mt-0 md:ml-6 flex-shrink-0">
                       {phaseTargetBloom && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-sm">
                           Target Bloom: {phaseTargetBloom}
                         </span>
                       )}
@@ -225,14 +275,69 @@ display(Markdown(content))
                     const alignment = getBloomAlignment(act.bloomLevel, phaseTargetBloom);
 
                     return (
-                      <div key={actIdx} className="bg-slate-50 rounded-lg p-5 border border-slate-200 hover:border-indigo-300 transition shadow-sm">
+                      <div key={actIdx} className="bg-slate-50 rounded-lg p-5 border border-slate-200 hover:border-indigo-300 transition shadow-sm group relative">
+                          
+                          {/* Activity Controls Toolbar */}
+                          <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-md shadow-sm border border-slate-200 p-1 z-10">
+                            <button 
+                              onClick={() => handleMoveActivity(phaseIdx, actIdx, 'up')}
+                              disabled={actIdx === 0}
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Moure amunt"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
+                            </button>
+                            <button 
+                              onClick={() => handleMoveActivity(phaseIdx, actIdx, 'down')}
+                              disabled={actIdx === phase.activities.length - 1}
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Moure avall"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div className="w-px bg-slate-200 mx-1"></div>
+                            <button 
+                              onClick={() => handleRemoveActivity(phaseIdx, actIdx)}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
+                              title="Eliminar activitat"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                          </div>
+
                           <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-3">
-                              <div className="flex-1">
-                                  <div className="flex justify-between items-start">
-                                      <h4 className="font-bold text-slate-900 text-base">{act.title}</h4>
-                                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider bg-white px-2 py-1 rounded border border-slate-200 ml-2">{act.duration}</span>
+                              <div className="flex-1 w-full pr-24"> {/* Padding right to avoid overlap with controls */}
+                                  <div className="flex flex-col md:flex-row justify-between items-start gap-2">
+                                      {/* Editable Title */}
+                                      <input 
+                                        type="text"
+                                        value={act.title}
+                                        onChange={(e) => handleActivityUpdate(phaseIdx, actIdx, 'title', e.target.value)}
+                                        className="font-bold text-slate-900 text-base bg-[#FAFDFE] border border-slate-200 rounded-lg px-3 py-2 hover:border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none w-full transition-colors placeholder-[#AAB4C8]"
+                                        placeholder="Títol de l'activitat"
+                                      />
+                                      
+                                      {/* Editable Duration */}
+                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                         <span className="text-xs text-slate-400 uppercase font-bold">Durada:</span>
+                                         <input 
+                                          type="text"
+                                          value={act.duration || ''}
+                                          onChange={(e) => handleActivityUpdate(phaseIdx, actIdx, 'duration', e.target.value)}
+                                          className="text-xs font-bold text-slate-700 border border-slate-200 rounded px-2 py-1 w-20 focus:border-indigo-500 focus:outline-none text-center bg-[#FAFDFE] placeholder-[#AAB4C8]"
+                                          placeholder="Ex: 30 min"
+                                        />
+                                      </div>
                                   </div>
-                                  <p className="text-slate-700 text-sm mt-2 leading-relaxed">{act.description}</p>
+
+                                  {/* Editable Description */}
+                                  <textarea
+                                    value={act.description}
+                                    onChange={(e) => handleActivityUpdate(phaseIdx, actIdx, 'description', e.target.value)}
+                                    className="w-full text-slate-700 text-sm mt-3 leading-relaxed bg-[#FAFDFE] border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition-shadow placeholder-[#AAB4C8]"
+                                    rows={3}
+                                    placeholder="Descripció detallada de l'activitat..."
+                                  />
                               </div>
                               
                               {/* Bloom Selector Column */}
@@ -240,7 +345,7 @@ display(Markdown(content))
                                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Taxonomia de Bloom</label>
                                   <select 
                                       value={bloomInfo.value}
-                                      onChange={(e) => handleBloomChange(phaseIdx, actIdx, e.target.value)}
+                                      onChange={(e) => handleActivityUpdate(phaseIdx, actIdx, 'bloomLevel', e.target.value)}
                                       className={`w-full text-sm font-bold rounded p-1.5 border outline-none focus:ring-2 focus:ring-indigo-200 ${bloomInfo.color}`}
                                   >
                                       {BLOOM_LEVELS.map(level => (
@@ -261,14 +366,36 @@ display(Markdown(content))
                               </div>
                           </div>
 
-                          <div className="flex flex-wrap gap-2 text-xs mt-2 border-t border-slate-200 pt-2">
-                             <span className="px-2.5 py-1 bg-white border border-slate-300 rounded text-slate-600 font-medium flex items-center gap-1">
-                               🎨 <span>{act.methodology}</span>
+                          <div className="flex flex-wrap gap-2 text-xs mt-2 border-t border-slate-200 pt-3 items-center">
+                             <span className="px-2.5 py-1 bg-white border border-slate-300 rounded text-slate-600 font-medium flex items-center gap-2 w-full md:w-auto">
+                               🎨 
+                               {/* Editable Methodology */}
+                               <input 
+                                type="text"
+                                value={act.methodology}
+                                onChange={(e) => handleActivityUpdate(phaseIdx, actIdx, 'methodology', e.target.value)}
+                                className="bg-[#FAFDFE] border border-slate-200 rounded px-2 py-1 focus:outline-none w-full text-slate-700 font-medium placeholder-[#AAB4C8] text-xs focus:ring-1 focus:ring-indigo-200"
+                                placeholder="Metodologia (ex: Gamificació)"
+                               />
+                             </span>
+                             <span className="text-slate-400 text-[10px] italic ml-auto md:ml-2 hidden md:block">
+                               Fes clic als textos per editar
                              </span>
                           </div>
                       </div>
                     );
                   })}
+                  
+                  {/* Add Activity Button */}
+                  <button 
+                    onClick={() => handleAddActivity(phaseIdx)}
+                    className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition flex items-center justify-center gap-2 font-medium text-sm group"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center group-hover:bg-indigo-200 group-hover:text-indigo-700 transition">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M12 4v16m8-8H4"></path></svg>
+                    </div>
+                    Afegir Nova Activitat
+                  </button>
                 </div>
               </div>
             );
