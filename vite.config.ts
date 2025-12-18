@@ -3,13 +3,14 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Carreguem variables d'entorn des del directori actual ('.') per evitar problemes amb process.cwd()
-  const env = loadEnv(mode, '.', '');
+  // Carreguem totes les variables d'entorn (el tercer paràmetre '' carrega totes, no només les VITE_)
+  // Utilitzem process.cwd() per assegurar que busquem al directori arrel del projecte
+  const env = loadEnv(mode, (process as any).cwd(), '');
 
   // Lògica de recuperació de la clau en ordre de prioritat:
-  // 1. VITE_API_KEY (Estàndard Vite local o Vercel)
-  // 2. API_KEY (Estàndard Vercel System Env)
-  // 3. process.env (Fallback per si el build system ja les té carregades)
+  // 1. VITE_API_KEY (Recomanat per Vite/Vercel)
+  // 2. API_KEY (Variable de sistema genèrica)
+  // 3. Fallback a process.env directe per si el sistema de build ja les té
   const apiKey = 
     env.VITE_API_KEY || 
     env.API_KEY || 
@@ -17,17 +18,19 @@ export default defineConfig(({ mode }) => {
     process.env.API_KEY || 
     '';
 
-  // Log de diagnòstic per al build log de Vercel (no visible al navegador)
+  // Logs de diagnòstic per al build de Vercel (apareixen al log de Vercel, no al navegador)
   if (!apiKey) {
-    console.warn('⚠️  AVÍS: No s\'ha detectat cap API KEY durant el build. Assegura\'t de tenir VITE_API_KEY configurada a Vercel.');
+    console.warn('⚠️  [BUILD WARNING] No s\'ha trobat cap API KEY. L\'app fallarà en execució.');
+    console.warn('   Assegura\'t de definir VITE_API_KEY a Vercel > Settings > Environment Variables.');
   } else {
-    console.log('✅ API Key detectada i injectada correctament.');
+    console.log('✅ [BUILD SUCCESS] API Key detectada correctament.');
   }
 
   return {
     plugins: [react()],
     define: {
       // Injectem la clau com a string estàtic en el codi final
+      // Això substitueix "process.env.API_KEY" pel valor real de la clau
       'process.env.API_KEY': JSON.stringify(apiKey)
     }
   }

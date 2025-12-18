@@ -24,21 +24,35 @@ const cleanJson = (text: string | undefined) => {
   return trimmed.replace(/```json/g, '').replace(/```/g, '').trim();
 };
 
-// --- CLIENT HELPER ---
+// --- CLIENT HELPER AMB GESTIÓ D'ERRORS ---
 const getClient = () => {
   const apiKey = process.env.API_KEY;
   
-  // Comprovació estricta: si és undefined, buit, o si la substitució de Vite ha fallat i encara val literalment "API_KEY"
+  // Missatge d'error detallat per ajudar a l'usuari
+  const errorMsg = 
+    "⚠️ ERROR D'API KEY:\n\n" +
+    "No s'ha detectat la clau d'API de Google.\n" +
+    "Si estàs a Vercel, segueix aquests passos:\n" +
+    "1. Ves al teu projecte a Vercel > Settings > Environment Variables.\n" +
+    "2. Afegeix una nova variable anomenada 'VITE_API_KEY' amb la teva clau.\n" +
+    "3. IMPORTANT: Ves a Deployments i fes 'Redeploy' a l'últim commit perquè els canvis tinguin efecte.";
+
+  // 1. Comprovació manual abans d'intentar crear el client
   if (!apiKey || apiKey.trim() === '' || apiKey.includes("API_KEY_MISSING")) {
-    throw new Error(
-      "CRITIC: No s'ha trobat la clau API. \n\n" +
-      "SI ESTÀS A VERCEL:\n" +
-      "1. Ves a Settings > Environment Variables.\n" +
-      "2. Assegura't que tens una variable 'VITE_API_KEY' amb la clau.\n" +
-      "3. IMPORTANT: Ves a Deployments i fes 'Redeploy' (no només refrescar) perquè els canvis tinguin efecte."
-    );
+    throw new Error(errorMsg);
   }
-  return new GoogleGenAI({ apiKey });
+
+  try {
+    // 2. Intentem crear el client. Si l'SDK detecta que la clau és invàlida o buida, llançarà un error.
+    return new GoogleGenAI({ apiKey });
+  } catch (e: any) {
+    // Si l'error és el genèric "API key is missing" de l'SDK, mostrem el nostre missatge d'ajuda.
+    if (e.message && (e.message.includes("API key is missing") || e.message.includes("provide a valid API key"))) {
+      throw new Error(errorMsg);
+    }
+    // Si és un altre error, el rellancem tal qual
+    throw e;
+  }
 };
 
 // --- ESQUEMES DE RESPOSTA ---
