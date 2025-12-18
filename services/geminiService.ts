@@ -1,10 +1,9 @@
 import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Phase1Input, Phase2Structure, Phase3Strategy, PhaseSequence, EvaluationTool, ActivityConfig, StudentWorksheet } from "../types";
 
-// Utilitzem gemini-3-pro-preview per a tasques complexes de disseny pedagògic
+// Guidelines: For complex reasoning and curriculum design tasks, 'gemini-3-pro-preview' is the appropriate model.
 const MODEL_NAME = "gemini-3-pro-preview";
 
-// --- CONFIGURACIÓ DE SEGURETAT ---
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -12,7 +11,6 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-// Funció per netejar el JSON que retorna la IA
 const cleanJson = (text: string | undefined) => {
   if (!text) return "{}";
   const trimmed = text.trim();
@@ -24,35 +22,9 @@ const cleanJson = (text: string | undefined) => {
   return trimmed.replace(/```json/g, '').replace(/```/g, '').trim();
 };
 
-// --- CLIENT HELPER AMB GESTIÓ D'ERRORS ---
+// Guidelines: Always initialize GoogleGenAI with { apiKey: process.env.API_KEY } directly.
 const getClient = () => {
-  const apiKey = process.env.API_KEY;
-  
-  // Missatge d'error detallat per ajudar a l'usuari
-  const errorMsg = 
-    "⚠️ ERROR D'API KEY:\n\n" +
-    "No s'ha detectat la clau d'API de Google.\n" +
-    "Si estàs a Vercel, segueix aquests passos:\n" +
-    "1. Ves al teu projecte a Vercel > Settings > Environment Variables.\n" +
-    "2. Afegeix una nova variable anomenada 'VITE_API_KEY' amb la teva clau.\n" +
-    "3. IMPORTANT: Ves a Deployments i fes 'Redeploy' a l'últim commit perquè els canvis tinguin efecte.";
-
-  // 1. Comprovació manual abans d'intentar crear el client
-  if (!apiKey || apiKey.trim() === '' || apiKey.includes("API_KEY_MISSING")) {
-    throw new Error(errorMsg);
-  }
-
-  try {
-    // 2. Intentem crear el client. Si l'SDK detecta que la clau és invàlida o buida, llançarà un error.
-    return new GoogleGenAI({ apiKey });
-  } catch (e: any) {
-    // Si l'error és el genèric "API key is missing" de l'SDK, mostrem el nostre missatge d'ajuda.
-    if (e.message && (e.message.includes("API key is missing") || e.message.includes("provide a valid API key"))) {
-      throw new Error(errorMsg);
-    }
-    // Si és un altre error, el rellancem tal qual
-    throw e;
-  }
+  return new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 };
 
 // --- ESQUEMES DE RESPOSTA ---
@@ -168,8 +140,6 @@ const evaluationToolsSchema = {
   required: ["tools"]
 };
 
-// --- FUNCIONS DE GENERACIÓ ---
-
 export const generateStructure = async (input: Phase1Input): Promise<Phase2Structure> => {
   const ai = getClient();
   const response = await ai.models.generateContent({
@@ -177,10 +147,12 @@ export const generateStructure = async (input: Phase1Input): Promise<Phase2Struc
     contents: `Genera estructura curricular per: ${input.topic}. Producte: ${input.product}. Curs: ${input.grade}. Basat en Decret 175/2022 de la Generalitat de Catalunya.`,
     safetySettings,
     config: {
+      // Guidelines: responseMimeType: "application/json" is required when using a responseSchema.
       responseMimeType: "application/json",
       responseSchema: phase2Schema,
     },
   });
+  // Guidelines: Directly access response.text property to extract generated content.
   return JSON.parse(cleanJson(response.text));
 };
 
