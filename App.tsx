@@ -178,14 +178,9 @@ const App: React.FC = () => {
           <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded shadow-sm">
             <p className="font-bold flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-              Ha ocorregut un error
+              Error
             </p>
-            <p className="text-sm mt-1">{error}</p>
-            {error.includes("API KEY") && (
-              <p className="text-xs mt-2 text-red-800 bg-red-100 p-2 rounded">
-                <strong>Nota per a Vercel:</strong> Si has afegit la variable <code>API_KEY</code> fa poc, recorda fer un "Redeploy" a la secció de Deployments perquè tingui efecte.
-              </p>
-            )}
+            <p className="text-sm mt-1 whitespace-pre-wrap">{error}</p>
           </div>
         )}
 

@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Phase1Input, Phase2Structure, Phase3Strategy, PhaseSequence, EvaluationTool, ActivityConfig, StudentWorksheet } from "../types";
 
@@ -23,6 +22,23 @@ const cleanJson = (text: string | undefined) => {
     return trimmed.substring(start, end + 1);
   }
   return trimmed.replace(/```json/g, '').replace(/```/g, '').trim();
+};
+
+// --- CLIENT HELPER ---
+const getClient = () => {
+  const apiKey = process.env.API_KEY;
+  
+  // Comprovació estricta: si és undefined, buit, o si la substitució de Vite ha fallat i encara val literalment "API_KEY"
+  if (!apiKey || apiKey.trim() === '' || apiKey.includes("API_KEY_MISSING")) {
+    throw new Error(
+      "CRITIC: No s'ha trobat la clau API. \n\n" +
+      "SI ESTÀS A VERCEL:\n" +
+      "1. Ves a Settings > Environment Variables.\n" +
+      "2. Assegura't que tens una variable 'VITE_API_KEY' amb la clau.\n" +
+      "3. IMPORTANT: Ves a Deployments i fes 'Redeploy' (no només refrescar) perquè els canvis tinguin efecte."
+    );
+  }
+  return new GoogleGenAI({ apiKey });
 };
 
 // --- ESQUEMES DE RESPOSTA ---
@@ -141,8 +157,7 @@ const evaluationToolsSchema = {
 // --- FUNCIONS DE GENERACIÓ ---
 
 export const generateStructure = async (input: Phase1Input): Promise<Phase2Structure> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  // Move safetySettings out of config to the top-level parameters
+  const ai = getClient();
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
     contents: `Genera estructura curricular per: ${input.topic}. Producte: ${input.product}. Curs: ${input.grade}. Basat en Decret 175/2022 de la Generalitat de Catalunya.`,
@@ -156,8 +171,7 @@ export const generateStructure = async (input: Phase1Input): Promise<Phase2Struc
 };
 
 export const generateStrategy = async (input: Phase1Input, structure: Phase2Structure): Promise<Phase3Strategy> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  // Move safetySettings out of config to the top-level parameters
+  const ai = getClient();
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
     contents: `Genera estratègia didàctica DUA per: ${input.topic}. Objectiu: ${structure.generalObjective}.`,
@@ -171,8 +185,7 @@ export const generateStrategy = async (input: Phase1Input, structure: Phase2Stru
 };
 
 export const generateSequence = async (input: Phase1Input, structure: Phase2Structure, strategy: Phase3Strategy): Promise<PhaseSequence[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  // Move safetySettings out of config to the top-level parameters
+  const ai = getClient();
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
     contents: `Genera seqüència d'activitats per: ${input.topic}. Alineades amb Bloom i DUA.`,
@@ -187,8 +200,7 @@ export const generateSequence = async (input: Phase1Input, structure: Phase2Stru
 };
 
 export const generateStudentWorksheets = async (sequence: PhaseSequence[], configs: ActivityConfig[], structure: Phase2Structure): Promise<StudentWorksheet[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  // Move safetySettings out of config to the top-level parameters
+  const ai = getClient();
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
     contents: `Genera fitxes de treball DUA per l'alumnat amb bastides de seguiment i metacognició.`,
@@ -203,8 +215,7 @@ export const generateStudentWorksheets = async (sequence: PhaseSequence[], confi
 };
 
 export const generateTools = async (worksheets: StudentWorksheet[], configs: ActivityConfig[]): Promise<EvaluationTool[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  // Move safetySettings out of config to the top-level parameters
+  const ai = getClient();
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
     contents: `Genera rúbriques o llistes de control detallades en format Markdown.`,
