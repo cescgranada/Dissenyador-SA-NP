@@ -1,7 +1,8 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Phase1Input, Phase2Structure, Phase3Strategy, PhaseSequence, EvaluationTool, ActivityConfig, StudentWorksheet } from "../types";
 
-// Utilitzem el model recomanat per a tasques complexes de raonament
+// Utilitzem gemini-3-pro-preview per a tasques complexes de raonament curricular i disseny pedagògic
 const MODEL_NAME = "gemini-3-pro-preview";
 
 // --- ESQUEMES DE RESPOSTA ---
@@ -120,10 +121,11 @@ const evaluationToolsSchema = {
 // --- FUNCIONS DE GENERACIÓ ---
 
 export const generateStructure = async (input: Phase1Input): Promise<Phase2Structure> => {
+  // Sempre inicialitzem GoogleGenAI amb process.env.API_KEY com a paràmetre anomenat
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
-    contents: `Genera estructura curricular per: ${input.topic}. Producte: ${input.product}. Curs: ${input.grade}. Basat en Decret 175/2022 de la Generalitat de Catalunya.`,
+    contents: `Genera estructura curricular per: ${input.topic}. Producte final: ${input.product}. Curs: ${input.grade}. Àmbit: ${input.area}. Durada: ${input.duration} hores. Basat en el Decret 175/2022 de la Generalitat de Catalunya.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: phase2Schema,
@@ -138,7 +140,7 @@ export const generateStrategy = async (input: Phase1Input, structure: Phase2Stru
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
-    contents: `Genera estratègia didàctica DUA per: ${input.topic}. Objectiu: ${structure.generalObjective}.`,
+    contents: `Genera estratègia didàctica DUA per a una Situació d'Aprenentatge: ${input.topic}. Objectiu General: ${structure.generalObjective}. Curs: ${input.grade}. Sabers essencials: ${structure.essentialKnowledge.join(', ')}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: phase3StrategySchema,
@@ -153,7 +155,7 @@ export const generateSequence = async (input: Phase1Input, structure: Phase2Stru
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
-    contents: `Genera seqüència d'activitats per: ${input.topic}. Alineades amb Bloom i DUA.`,
+    contents: `Genera una seqüència detallada d'activitats per: ${input.topic}. Usa l'estructura curricular: ${JSON.stringify(structure)} i l'estratègia DUA: ${JSON.stringify(strategy)}. Alinea cada activitat amb la Taxonomia de Bloom.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: phaseSequenceSchema,
@@ -169,7 +171,7 @@ export const generateStudentWorksheets = async (sequence: PhaseSequence[], confi
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
-    contents: `Genera fitxes de treball DUA per l'alumnat amb bastides de seguiment i metacognició basades en la seqüència d'activitats proporcionada.`,
+    contents: `Genera fitxes de treball DUA per l'alumnat basades en aquesta seqüència d'activitats: ${JSON.stringify(sequence)} i aquestes configuracions d'agrupament: ${JSON.stringify(configs)}. Utilitza l'objectiu general: ${structure.generalObjective}. Inclou bastides de seguiment.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: studentWorksheetsSchema,
@@ -185,7 +187,7 @@ export const generateTools = async (worksheets: StudentWorksheet[], configs: Act
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
-    contents: `Genera rúbriques o llistes de control detallades en format Markdown per a les activitats seleccionades.`,
+    contents: `Genera instruments d'avaluació detallats (com rúbriques o llistes de control) en format Markdown per a les següents fitxes d'estudiant: ${JSON.stringify(worksheets)} i les seves configuracions: ${JSON.stringify(configs)}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: evaluationToolsSchema,
