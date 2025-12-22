@@ -1,48 +1,9 @@
-import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
+
+import { GoogleGenAI, Type } from "@google/genai";
 import { Phase1Input, Phase2Structure, Phase3Strategy, PhaseSequence, EvaluationTool, ActivityConfig, StudentWorksheet } from "../types";
 
-// Utilitzem gemini-3-pro-preview per a tasques complexes de disseny pedagògic
+// Utilitzem el model recomanat per a tasques complexes de raonament (coding, reasoning, STEM)
 const MODEL_NAME = "gemini-3-pro-preview";
-
-const safetySettings = [
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-];
-
-const cleanJson = (text: string | undefined) => {
-  if (!text) return "{}";
-  const trimmed = text.trim();
-  const start = trimmed.indexOf('{');
-  const end = trimmed.lastIndexOf('}');
-  if (start !== -1 && end !== -1 && end > start) {
-    return trimmed.substring(start, end + 1);
-  }
-  return trimmed.replace(/```json/g, '').replace(/```/g, '').trim();
-};
-
-const getClient = () => {
-  const apiKey = process.env.API_KEY;
-
-  if (!apiKey || apiKey === "" || apiKey === "undefined") {
-    throw new Error(
-      "🔑 ERROR DE CLAU API:\n\n" +
-      "No s'ha trobat la clau API de Google Gemini.\n\n" +
-      "Passos per solucionar-ho a VERCEL:\n" +
-      "1. Ves a la configuració del teu projecte a Vercel.\n" +
-      "2. Afegeix 'VITE_API_KEY' (o 'API_KEY') a 'Environment Variables'.\n" +
-      "3. Molt important: Fes un 'REDEPLOY' del projecte perquè Vite pugui injectar la clau al codi."
-    );
-  }
-
-  try {
-    return new GoogleGenAI({ apiKey });
-  } catch (error) {
-    console.error("Error inicialitzant GoogleGenAI:", error);
-    throw new Error("Error en la configuració de l'IA. Revisa la validesa de la teva clau.");
-  }
-};
 
 // --- ESQUEMES DE RESPOSTA ---
 const phase2Schema = {
@@ -157,75 +118,105 @@ const evaluationToolsSchema = {
   required: ["tools"]
 };
 
+// --- FUNCIONS DE GENERACIÓ ---
+
+// Fix: Always use direct initialization with process.env.API_KEY as per guidelines.
+// Assume process.env.API_KEY is pre-configured and accessible.
+
+/**
+ * Genera l'estructura curricular basada en la contextualització inicial.
+ */
 export const generateStructure = async (input: Phase1Input): Promise<Phase2Structure> => {
-  const ai = getClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
     contents: `Genera estructura curricular per: ${input.topic}. Producte: ${input.product}. Curs: ${input.grade}. Basat en Decret 175/2022 de la Generalitat de Catalunya.`,
-    safetySettings,
     config: {
       responseMimeType: "application/json",
       responseSchema: phase2Schema,
     },
   });
-  return JSON.parse(cleanJson(response.text));
+  
+  const text = response.text;
+  if (!text) throw new Error("No s'ha pogut obtenir una resposta de la IA per a l'estructura.");
+  return JSON.parse(text.trim());
 };
 
+/**
+ * Genera l'estratègia didàctica DUA i planificació de fases.
+ */
 export const generateStrategy = async (input: Phase1Input, structure: Phase2Structure): Promise<Phase3Strategy> => {
-  const ai = getClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
     contents: `Genera estratègia didàctica DUA per: ${input.topic}. Objectiu: ${structure.generalObjective}.`,
-    safetySettings,
     config: {
       responseMimeType: "application/json",
       responseSchema: phase3StrategySchema,
     },
   });
-  return JSON.parse(cleanJson(response.text));
+  
+  const text = response.text;
+  if (!text) throw new Error("No s'ha pogut obtenir una resposta de la IA per a l'estratègia.");
+  return JSON.parse(text.trim());
 };
 
+/**
+ * Genera la seqüència detallada d'activitats.
+ */
 export const generateSequence = async (input: Phase1Input, structure: Phase2Structure, strategy: Phase3Strategy): Promise<PhaseSequence[]> => {
-  const ai = getClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
     contents: `Genera seqüència d'activitats per: ${input.topic}. Alineades amb Bloom i DUA.`,
-    safetySettings,
     config: {
       responseMimeType: "application/json",
       responseSchema: phaseSequenceSchema,
     },
   });
-  const data = JSON.parse(cleanJson(response.text));
+  
+  const text = response.text;
+  if (!text) throw new Error("No s'ha pogut obtenir una resposta de la IA per a la seqüència.");
+  const data = JSON.parse(text.trim());
   return data.sequence;
 };
 
+/**
+ * Genera fitxes de treball per a l'alumnat.
+ */
 export const generateStudentWorksheets = async (sequence: PhaseSequence[], configs: ActivityConfig[], structure: Phase2Structure): Promise<StudentWorksheet[]> => {
-  const ai = getClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
-    contents: `Genera fitxes de treball DUA per l'alumnat amb bastides de seguiment i metacognició.`,
-    safetySettings,
+    contents: `Genera fitxes de treball DUA per l'alumnat amb bastides de seguiment i metacognició basades en la seqüència d'activitats proporcionada.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: studentWorksheetsSchema,
     },
   });
-  const data = JSON.parse(cleanJson(response.text));
+  
+  const text = response.text;
+  if (!text) throw new Error("No s'ha pogut obtenir una resposta de la IA per a les fitxes.");
+  const data = JSON.parse(text.trim());
   return data.worksheets;
 };
 
+/**
+ * Genera eines d'avaluació (rúbriques, checklists, etc.) per al docent.
+ */
 export const generateTools = async (worksheets: StudentWorksheet[], configs: ActivityConfig[]): Promise<EvaluationTool[]> => {
-  const ai = getClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
-    contents: `Genera rúbriques o llistes de control detallades en format Markdown.`,
-    safetySettings,
+    contents: `Genera rúbriques o llistes de control detallades en format Markdown per a les activitats seleccionades.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: evaluationToolsSchema,
     },
   });
-  const data = JSON.parse(cleanJson(response.text));
+  
+  const text = response.text;
+  if (!text) throw new Error("No s'ha pogut obtenir una resposta de la IA per a les eines d'avaluació.");
+  const data = JSON.parse(text.trim());
   return data.tools;
 };
