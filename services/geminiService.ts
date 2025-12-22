@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Phase1Input, Phase2Structure, Phase3Strategy, PhaseSequence, EvaluationTool, ActivityConfig, StudentWorksheet } from "../types";
 
-// Guidelines: For complex reasoning and curriculum design tasks, 'gemini-3-pro-preview' is the appropriate model.
+// Utilitzem gemini-3-pro-preview per a tasques complexes de disseny pedagògic
 const MODEL_NAME = "gemini-3-pro-preview";
 
 const safetySettings = [
@@ -22,9 +22,26 @@ const cleanJson = (text: string | undefined) => {
   return trimmed.replace(/```json/g, '').replace(/```/g, '').trim();
 };
 
-// Guidelines: Always initialize GoogleGenAI with { apiKey: process.env.API_KEY } directly.
 const getClient = () => {
-  return new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey || apiKey === "" || apiKey === "undefined") {
+    throw new Error(
+      "🔑 ERROR DE CLAU API:\n\n" +
+      "No s'ha trobat la clau API de Google Gemini.\n\n" +
+      "Passos per solucionar-ho a VERCEL:\n" +
+      "1. Ves a la configuració del teu projecte a Vercel.\n" +
+      "2. Afegeix 'VITE_API_KEY' (o 'API_KEY') a 'Environment Variables'.\n" +
+      "3. Molt important: Fes un 'REDEPLOY' del projecte perquè Vite pugui injectar la clau al codi."
+    );
+  }
+
+  try {
+    return new GoogleGenAI({ apiKey });
+  } catch (error) {
+    console.error("Error inicialitzant GoogleGenAI:", error);
+    throw new Error("Error en la configuració de l'IA. Revisa la validesa de la teva clau.");
+  }
 };
 
 // --- ESQUEMES DE RESPOSTA ---
@@ -147,12 +164,10 @@ export const generateStructure = async (input: Phase1Input): Promise<Phase2Struc
     contents: `Genera estructura curricular per: ${input.topic}. Producte: ${input.product}. Curs: ${input.grade}. Basat en Decret 175/2022 de la Generalitat de Catalunya.`,
     safetySettings,
     config: {
-      // Guidelines: responseMimeType: "application/json" is required when using a responseSchema.
       responseMimeType: "application/json",
       responseSchema: phase2Schema,
     },
   });
-  // Guidelines: Directly access response.text property to extract generated content.
   return JSON.parse(cleanJson(response.text));
 };
 
