@@ -1,8 +1,7 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Phase1Input, Phase2Structure, Phase3Strategy, PhaseSequence, EvaluationTool, ActivityConfig, StudentWorksheet } from "../types";
 
-// Utilitzem el model recomanat per a tasques complexes de raonament (coding, reasoning, STEM)
+// Utilitzem el model recomanat per a tasques complexes de raonament
 const MODEL_NAME = "gemini-3-pro-preview";
 
 // --- ESQUEMES DE RESPOSTA ---
@@ -120,12 +119,6 @@ const evaluationToolsSchema = {
 
 // --- FUNCIONS DE GENERACIÓ ---
 
-// Fix: Always use direct initialization with process.env.API_KEY as per guidelines.
-// Assume process.env.API_KEY is pre-configured and accessible.
-
-/**
- * Genera l'estructura curricular basada en la contextualització inicial.
- */
 export const generateStructure = async (input: Phase1Input): Promise<Phase2Structure> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
@@ -137,14 +130,10 @@ export const generateStructure = async (input: Phase1Input): Promise<Phase2Struc
     },
   });
   
-  const text = response.text;
-  if (!text) throw new Error("No s'ha pogut obtenir una resposta de la IA per a l'estructura.");
-  return JSON.parse(text.trim());
+  if (!response.text) throw new Error("Resposta de la IA buida.");
+  return JSON.parse(response.text.trim());
 };
 
-/**
- * Genera l'estratègia didàctica DUA i planificació de fases.
- */
 export const generateStrategy = async (input: Phase1Input, structure: Phase2Structure): Promise<Phase3Strategy> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
@@ -156,14 +145,10 @@ export const generateStrategy = async (input: Phase1Input, structure: Phase2Stru
     },
   });
   
-  const text = response.text;
-  if (!text) throw new Error("No s'ha pogut obtenir una resposta de la IA per a l'estratègia.");
-  return JSON.parse(text.trim());
+  if (!response.text) throw new Error("Resposta de la IA buida.");
+  return JSON.parse(response.text.trim());
 };
 
-/**
- * Genera la seqüència detallada d'activitats.
- */
 export const generateSequence = async (input: Phase1Input, structure: Phase2Structure, strategy: Phase3Strategy): Promise<PhaseSequence[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
@@ -175,15 +160,11 @@ export const generateSequence = async (input: Phase1Input, structure: Phase2Stru
     },
   });
   
-  const text = response.text;
-  if (!text) throw new Error("No s'ha pogut obtenir una resposta de la IA per a la seqüència.");
-  const data = JSON.parse(text.trim());
+  if (!response.text) throw new Error("Resposta de la IA buida.");
+  const data = JSON.parse(response.text.trim());
   return data.sequence;
 };
 
-/**
- * Genera fitxes de treball per a l'alumnat.
- */
 export const generateStudentWorksheets = async (sequence: PhaseSequence[], configs: ActivityConfig[], structure: Phase2Structure): Promise<StudentWorksheet[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
@@ -195,15 +176,11 @@ export const generateStudentWorksheets = async (sequence: PhaseSequence[], confi
     },
   });
   
-  const text = response.text;
-  if (!text) throw new Error("No s'ha pogut obtenir una resposta de la IA per a les fitxes.");
-  const data = JSON.parse(text.trim());
+  if (!response.text) throw new Error("Resposta de la IA buida.");
+  const data = JSON.parse(response.text.trim());
   return data.worksheets;
 };
 
-/**
- * Genera eines d'avaluació (rúbriques, checklists, etc.) per al docent.
- */
 export const generateTools = async (worksheets: StudentWorksheet[], configs: ActivityConfig[]): Promise<EvaluationTool[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
@@ -215,8 +192,7 @@ export const generateTools = async (worksheets: StudentWorksheet[], configs: Act
     },
   });
   
-  const text = response.text;
-  if (!text) throw new Error("No s'ha pogut obtenir una resposta de la IA per a les eines d'avaluació.");
-  const data = JSON.parse(text.trim());
+  if (!response.text) throw new Error("Resposta de la IA buida.");
+  const data = JSON.parse(response.text.trim());
   return data.tools;
 };
